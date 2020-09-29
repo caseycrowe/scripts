@@ -20,6 +20,7 @@ write-host `r`n
 
 if(!(Test-Path -Path $dir )){
     New-Item -ItemType directory -Path $dir
+                New-Item -ItemType directory -Path "c:\temp\migrationprep\distribution_lists\"
     Write-Host "Migration prep folder created." -ForegroundColor Cyan
     Write-Host `r`n
 }
@@ -41,6 +42,7 @@ Write-Host `r`n
 #Get-mailbox -resultsize unlimited  -SortBy Name -RecipientTypeDetails usermailbox | select name -expandproperty emailaddresses -ExcludeProperty primaryemailaddress | export-csv C:\temp\migrationprep\user-maillbox-list.csv -NoTypeInformation
 # reference: Get-mailbox -resultsize unlimited | select name,primaryemailaddress -expandproperty emailaddresses | export-csv
 get-mailbox -resultsize unlimited -sortby name | select displayname, samaccountname, primarysmtpaddress | export-csv c:\temp\migrationprep\user-mailbox-list.csv -NoTypeInformation
+Get-MailboxDatabase | Get-MailboxStatistics | Select DisplayName, ItemCount, TotalItemSize | Sort-Object TotalItemSize -Descending | export-csv c:\temp\migrationprep\user-mailbox-sizes.csv -NoTypeInformation
 
 #Collect alises
 write-host "Collecting a list of aliases, exporting to alias-list.csv." -ForegroundColor Cyan
@@ -65,7 +67,8 @@ foreach($i in Get-distributiongroup | select){
 #Collect contacts
 write-host "Collecting contacts, exporting to contacts.csv." -ForegroundColor Cyan
 Write-Host `r`n
-get-contact | select displayname, Firstname, Lastname, windowsemailaddress, name | export-csv c:\temp\migrationprep\contacts.csv -notypeinformationget-contact | select displayname, Firstname, Lastname, windowsemailaddress, name | export-csv c:\temp\migrationprep\contacts.csv -notypeinformation
+get-contact | select displayname, Firstname, Lastname, windowsemailaddress, name | export-csv c:\temp\migrationprep\contacts.csv -notypeinformation 
+
 
 #collect forwards
 write-host "Collecting mailbox forwards, exporting to forwards.csv." -ForegroundColor Cyan
