@@ -36,13 +36,19 @@ Write-Host `r`n
 echo "Accepted domains:" >> C:\temp\migrationprep\environment_info.txt
 Get-AcceptedDomain >> c:\temp\migrationprep\environment_info.txt
 
-#Collect mailbox list
-write-host "Collecting a list of all used mailboxes, exporting to user-mailbox-list.csv." -ForegroundColor Cyan
+#Collect mailbox sizes
+write-host "Collecting a list of all used mailboxes, exporting to user-mailbox-sizes.csv." -ForegroundColor Cyan
 Write-Host `r`n
-#Get-mailbox -resultsize unlimited  -SortBy Name -RecipientTypeDetails usermailbox | select name -expandproperty emailaddresses -ExcludeProperty primaryemailaddress | export-csv C:\temp\migrationprep\user-maillbox-list.csv -NoTypeInformation
-# reference: Get-mailbox -resultsize unlimited | select name,primaryemailaddress -expandproperty emailaddresses | export-csv
-get-mailbox -resultsize unlimited -sortby name | select displayname, samaccountname, primarysmtpaddress | export-csv c:\temp\migrationprep\user-mailbox-list.csv -NoTypeInformation
 Get-MailboxDatabase | Get-MailboxStatistics | Select DisplayName, ItemCount, TotalItemSize | Sort-Object TotalItemSize -Descending | export-csv c:\temp\migrationprep\user-mailbox-sizes.csv -NoTypeInformation
+
+#Collect Userlist formatted for O365 Import
+write-host "Collecting Mailboxes and exporting appropriate fields to o365userlist.csv for import into O365" -ForegroundColor Cyan
+Write-Host `r`n
+$mailboxes = Get-Mailbox -resultSize unlimited
+$mailboxes | foreach { Get-User $_ | select WindowsEmailAddress, FirstName, LastName, DisplayName, JobTitle, Department, OfficeNumber, OfficePhone, MobilePhone, Fax, AlternateEmailAddress, Address, City, StateOrProvince, ZipOrPostalCode, CountryOrRegion} | export-csv -NoTypeInformation c:\temp\migrationprep\o365userlist.csv -Encoding unicode
+#Remove Quotes from created file
+(gc C:\temp\migrationprep\o365userlist.csv) | % {$_ -replace '"', ""} | out-file c:\temp\migrationprep\o365userlist.csv -Fo -En ascii
+
 
 #Collect alises
 write-host "Collecting a list of aliases, exporting to alias-list.csv." -ForegroundColor Cyan
