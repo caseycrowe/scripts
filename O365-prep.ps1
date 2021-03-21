@@ -1,6 +1,5 @@
 <#
 Office 365 migration prep script
-
 This script will collect various information from an Exchange server and export
 to a folder for import into Office 365 or another Exchange environment. Run from 
 an elevated Exchange Management Shell.
@@ -35,6 +34,8 @@ write-host "Collecting some information about the Exchange environment, and savi
 Write-Host `r`n
 echo "Accepted domains:" >> C:\temp\migrationprep\environment_info.txt
 Get-AcceptedDomain >> c:\temp\migrationprep\environment_info.txt
+#Store the accepted domains
+$exchdomains = get-accepteddomain
 
 #Collect mailbox sizes
 write-host "Collecting a list of all used mailboxes, exporting to user-mailbox-sizes.csv." -ForegroundColor Cyan
@@ -75,11 +76,31 @@ write-host "Collecting contacts, exporting to contacts.csv." -ForegroundColor Cy
 Write-Host `r`n
 get-contact | select displayname, Firstname, Lastname, windowsemailaddress, name | export-csv c:\temp\migrationprep\contacts.csv -notypeinformation 
 
-
 #collect forwards
 write-host "Collecting mailbox forwards, exporting to forwards.csv." -ForegroundColor Cyan
 Write-Host `r`n
 Get-mailbox | select DisplayName,ForwardingAddress | where {$_.ForwardingAddress -ne $Null} | export-csv c:\temp\migrationprep\forwards.csv -notypeinformation
+
+#Check for Exchange transport rules
+write-host "Checking server for transport rules and appending to environment_info.txt." -ForegroundColor Cyan
+Write-Host `r`n
+echo "Transport rules:" >> C:\temp\migrationprep\environment_info.txt
+Get-TransportRule >> c:\temp\migrationprep\environment_info.txt
+
+#Check for SPF record
+write-host "Checking DNS for SPF records and appending to environment_info.txt." -ForegroundColor Cyan
+Write-Host `r`n
+echo "SPF records:" >> C:\temp\migrationprep\environment_info.txt
+$exchdomains = get-accepteddomain
+foreach ($domain in $exchdomains.name) {
+  $spfrecord = nslookup -type=TXT $domain 8.8.8.8 2>null| select-string -pattern "spf"
+  echo $spfrecord >> C:\temp\migrationprep\environment_info.txt
+}
+
+#Check for users with permissions to other mailboxes
+write-host "Checking for users with permissions to other mailboxes, exporting to mailbox-permissions.csv" -ForegroundColor Cyan
+Write-Host `r`n
+Get-Mailbox | Get-MailboxPermission | where {$_.user.tostring() -ne "NT AUTHORITY\SELF" -and $_.IsInherited -eq $false} | Select Identity,User,@{Name='Access Rights';Expression={[string]::join(', ', $_.AccessRights)}} | Export-Csv -NoTypeInformation mailbox-permissions.csv
 
 #Finished
 write-host "Script complete." -ForegroundColor White
