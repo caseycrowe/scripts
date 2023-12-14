@@ -1,0 +1,82 @@
+import pandas as pd
+import re
+import usaddress
+import datetime
+
+# Replace 'your_file.csv' with the actual path to your CSV file
+csv_file_path = 'your_file.csv'
+
+# Read the CSV file into a DataFrame
+df = pd.read_csv(csv_file_path)
+
+def remove_after_last_int(s):
+  # Find the last occurrence of a digit in the string
+  match = re.search(r'\d(?=[^\d]*$)', s)
+  # If there is a match, return the substring up to and including the digit
+  if match:
+    return s[:match.end()]
+  # Otherwise, return the original string
+  else:
+    return s
+
+def replace_carriage_returns(s):
+    return s.replace('\n', ' ')
+
+def remove_commas(s):
+    return s.replace(',', '')
+
+def insert_ok_comma(s):
+    return s.replace('Ok 7', 'OK, 7')
+
+def append_zip_comma(s):
+    s = s + ","
+    return s
+
+def concatenate_except_recipient(tuples):
+    # Filter out tuples where the second element is 'Recipient'
+    filtered_tuples = [t for t in tuples if t[1] != 'Recipient']
+    # Concatenate the first elements of the remaining tuples
+    result = ' '.join(t[0] for t in filtered_tuples)
+    return result
+
+# Function to process each donor string
+def process_string(donor_str):
+    match = re.search(r'\d', donor_str)  # Find the first integer in the string
+    if match:
+        donorName = donor_str[:match.start()]  # Get all characters up to the first integer
+    else:
+        donorName = donor_str  # If no integer found, use the whole string
+
+    # Remove spaces and carriage returns
+    donorName = donorName.replace(' ', '').replace('\n', '')
+    return donorName
+
+# Function to convert rawDate to the required format
+def convert_date(raw_date):
+    return datetime.datetime.fromtimestamp((raw_date - 25569) * 86400).strftime('%m/%d/%Y')
+
+
+# Remove the job title
+df['donorNoJob'] = df['Donor'].apply(remove_after_last_int)
+df['donorNoJob'] = df['donorNoJob'].apply(replace_carriage_returns)
+
+# Apply the function to the 'Donor' column
+df['donorName'] = df['Donor'].apply(process_string)
+
+# Apply the function to the "Date" column
+df['Date'] = df['Date'].apply(convert_date)
+
+print("Date, Lname, Fname, Address, Zip, Amount")
+
+for ind in df.index:
+  donorAddress = remove_after_last_int(df['donorNoJob'][ind])
+  rawAddress = usaddress.parse(donorAddress)
+  fullAddress = concatenate_except_recipient(rawAddress)
+  noCommaAddress = remove_commas(fullAddress)
+  stateCommaAddress = insert_ok_comma(noCommaAddress)
+  finalAddress = append_zip_comma(stateCommaAddress)
+  cleanDonor = process_string(df['donorName'][ind])
+  cleanDate = (df['Date'][ind])
+  cleanAmount = "{:.2f}".format(df['Amount'][ind])
+
+  print(cleanDate + "," + cleanDonor + "," + finalAddress + cleanAmount)
